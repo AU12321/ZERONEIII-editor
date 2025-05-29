@@ -409,12 +409,20 @@ let slider = document.getElementById("time");
 let speedSliderN = document.getElementById("speedN");
 let speedSliderM = document.getElementById("speedM");
 let music = new Audio(URL.createObjectURL(getSilentAudioBuffer(180)));
+music.onended = e => {
+	paused = true;
+	document.getElementById("control").innerText = "Play";
+}
 localforage.getItem("music").then(data => {
 	if (data) music = new Audio(data);
 	music.onloadedmetadata = e => {
 		music.volume = 0.5;
 		slider.value = 0;
 		slider.setAttribute("max", music.duration);
+	}
+	music.onended = e => {
+		paused = true;
+		document.getElementById("control").innerText = "Play";
 	}
 }).catch(e => console.error(e));
 
@@ -424,12 +432,9 @@ mInput.onchange = e => {
 	music.pause();
 	document.getElementById("control").innerText = "Play";
 	music.src = URL.createObjectURL(mInput.files[0]);
+	music.playbackRate = speedSliderM.valueAsNumber;
 	window.onbeforeunload = e => (e.returnValue = "");
 };
-music.onended = e => {
-	paused = true;
-	document.getElementById("control").innerText = "Play";
-}
 slider.oninput = e => {
 	music.currentTime = slider.valueAsNumber + chartData[0][2] / 1000;
 	beat = t2b(slider.valueAsNumber);
@@ -459,6 +464,7 @@ window.onmousemove = e => {
 
 const cos = t => Math.cos(t * Math.PI / 180);
 const sin = t => Math.sin(t * Math.PI / 180);
+const clamp = (n, m, M) => Math.max(m, Math.min(n, M));
 
 let cx = 0, cy = 130, cz = -200, pers = 400;
 let ry = 0, rp = -15, rr = 0;
@@ -468,8 +474,8 @@ let Z = 0;
 let beat = 0;
 let mirror = 1;
 let editor = {
-	hei: 1,
-	dis: 1,
+	hei: 0.75,
+	dis: 90,
 	div: 4
 };
 
@@ -812,14 +818,14 @@ function render() {
 			text2d(Math.floor(1000 * Math.round(editor.div * beat) / editor.div) / 1000, 164, -140, 10, undefined, 75, "#000000", 85);
 			text2d(notes.filter(e => beat >= e.beat).length + "/" + notes.length, 166, -156, undefined, undefined, 50, "#000000", 85);
 			text2d("wasd,wheel", 10, -156, undefined, undefined, 60, "#888888", 65);
-			for (let i = editor.div * Math.floor(beat - 33 / 90 / editor.dis); i < editor.div * Math.ceil(beat + 333 / 90 / editor.dis); i++) {
+			for (let i = editor.div * Math.floor(beat - 33 / editor.dis); i < editor.div * Math.ceil(beat + 333 / editor.dis); i++) {
 				if (i % editor.div == 0) {
 					c.fillStyle = "#aaaaaa";
-					line2d(-10, 90 * (i / editor.div - beat) - 150, 0, 90 * (i / editor.div - beat) - 150, 3);
-					text2d(i / editor.div, -17, 90 * (i / editor.div - beat) - 150, undefined, undefined, 50, "#aaaaaa", undefined, "rc");
+					line2d(-10, editor.dis * (i / editor.div - beat) - 150, 0, editor.dis * (i / editor.div - beat) - 150, 3);
+					text2d(i / editor.div, -17, editor.dis * (i / editor.div - beat) - 150, undefined, undefined, 50, "#aaaaaa", undefined, "rc");
 				} else {
 					c.fillStyle = "#dddddd";
-					line2d(-5, 90 * (i / editor.div - beat) - 150, 0, 90 * (i / editor.div - beat) - 150, 3);
+					line2d(-5, editor.dis * (i / editor.div - beat) - 150, 0, editor.dis * (i / editor.div - beat) - 150, 3);
 				}
 			}
 			c.fillStyle = "#aaaaaa";
@@ -828,9 +834,9 @@ function render() {
 			c.fillStyle = nt;
 			for (let i = 0; i < notes.length; i++) {
 				let e = notes[i];
-				if (e.beat - beat > -35 / editor.dis / 90) {
-					l = e.x + 100, y = 90 * editor.dis * (e.beat - beat) - 150, h = editor.hei * e.y, w = e.width;
-					if (e.beat - beat < 335 / editor.dis / 90) {
+				if (e.beat - beat > -35 / editor.dis) {
+					l = e.x + 100, y = editor.dis * (e.beat - beat) - 150, h = editor.hei * e.y / 0.75, w = e.width;
+					if (e.beat - beat < 335 / editor.dis) {
 						if (e.y != 0 && ln != "clear") {
 							c.fillStyle = ln;
 							line2d(l, y,
@@ -847,8 +853,8 @@ function render() {
 					}
 					for (let j = 0; j < e.knil.length; j++) {
 						let f = e.knil[j];
-						if (f.beat - beat < 335 / editor.dis / 90 && nt != "clear") {
-							_l = f.x + 100, _y = 90 * editor.dis * (f.beat - beat) - 150, _h = editor.hei * f.y, _w = f.width;
+						if (f.beat - beat < 335 / editor.dis && nt != "clear") {
+							_l = f.x + 100, _y = editor.dis * (f.beat - beat) - 150, _h = editor.hei * f.y / 0.75, _w = f.width;
 							c.fillStyle = nt;
 							line2d(l - w, y + h, _l - _w, _y + _h, 3);
 							line2d(l + w, y + h, _l + _w, _y + _h, 3);
@@ -857,7 +863,7 @@ function render() {
 				}
 			}
 			c.fillStyle = "#aaaaaa";
-			line2d(0, 75 * editor.hei - 150, 200, 75 * editor.hei - 150, 3);
+			line2d(0, 100 * editor.hei - 150, 200, 100 * editor.hei - 150, 3);
 		}
 		
 		buttons.forEach(e => {
@@ -920,13 +926,43 @@ buttons.push({
 	}
 });
 
-ui.onmousedown = () => {
+window.keys = {};
+window.onkeydown = event => window.keys[event.key] = true;
+window.onkeyup = event => window.keys[event.key] = false;
+
+ui.onmousedown = event => {
 	buttons.forEach(e => {
 		if (e.active) {
 			playSound("click", sfxVol);
 			e.onclick();
 		}
 	});
+};
+
+ui.onwheel = event => {
+	if (mode == "2d") {
+		event.preventDefault();
+		if (window.keys.z) {
+			if (event.deltaY < 0) editor.hei += 0.15;
+			else editor.hei -= 0.15;
+			editor.hei = clamp(editor.hei, 0, 0.75);
+		}
+		if (window.keys.x) {
+			if (event.deltaY < 0) {
+				editor.dis *= 1.2;
+				if (editor.dis < 90 && editor.dis > 75) editor.dis = 90;
+			} else {
+				editor.dis /= 1.2;
+				if (editor.dis > 90 && editor.dis < 108) editor.dis = 90;
+			}
+			editor.dis = clamp(editor.dis, 10, 1000);
+		}
+		if (window.keys.c) {
+			if (event.deltaY < 0) editor.div += 1;
+			else editor.div -= 1;
+			editor.div = clamp(editor.div, 1, 16);
+		}
+	}
 };
 
 window.addEventListener("ready", () => requestAnimationFrame(render));
